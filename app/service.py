@@ -1,4 +1,3 @@
-import json
 from decimal import Decimal
 from pathlib import Path
 
@@ -61,11 +60,13 @@ def pipeline(profile="dirty", path=None, upto="证据交付"):
                          if key in {"label", "verdict", "reason", "metric", "limit", "status", "state", "breakdown"}
                          or key in SPEC["columns"] or key in SPEC["result_columns"]})
     source = {"profile": profile, "filename": Path(intake["path"]).name, "sha256": intake["sha256"]}
+    sensors = sorted({row.get("sensor_id", "") for row in intake["rows"] if row.get("sensor_id")})
     payload = {
         "project": SPEC["code"] + " " + SPEC["name"],
         "rule": SPEC["rule_short"],
         "profile": profile,
         "source": source,
+        "sensors": sensors,
         "counts": intake["counts"],
         "issues": issues[:60],
         "rows": rows,

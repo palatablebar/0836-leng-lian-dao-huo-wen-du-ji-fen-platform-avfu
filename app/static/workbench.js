@@ -85,20 +85,68 @@
     } catch (error) { setNotice(error.message); }
     finally { document.body.removeAttribute('aria-busy'); }
   }
+  function syncReviewButtons() {
+    var run = state.run;
+    var terminal = run && (run.status === 'SUPERSEDED');
+    var decided = run && (run.status === 'APPROVED' || run.status === 'HELD');
+    $('sign').disabled = terminal || decided || (run && run.summary.REJECT > 0);
+    $('hold').disabled = terminal || decided;
+    var downloadable = run && (run.status === 'APPROVED' || run.status === 'SUPERSEDED');
+    $('download').hidden = !downloadable;
+    if (downloadable) $('download').href = '/api/runs/' + run.run_id + '/evidence';
+  }
+  function renderCalibration(run) {
+    var cal = run && run.calibration;
+    if (!run) {
+      $('release-pill').textContent = '未执行批次';
+      $('release-pill').removeAttribute('data-r');
+      $('rep-sensor').innerHTML = '';
+      $('rep-send').disabled = true;
+      $('tol-list').innerHTML = '<li class="empty">尚未登记容差</li>';
+      $('rep-list').innerHTML = '<li class="empty">尚未收到校准报告</li>';
+      $('cal-note').textContent = '';
+      return;
+    }
+    var sensors = run.sensors || [];
+    $('rep-sensor').innerHTML = sensors.map(function (sid) {
+      return '<option value="' + esc(sid) + '">' + esc(sid) + '</option>';
+    }).join('');
+    $('rep-send').disabled = sensors.length === 0 || run.status === 'SUPERSEDED';
+    if (cal) {
+      $('release-pill').textContent = cal.release_label + (cal.complete ? ' · 实测' : ' · 包络');
+      $('release-pill').setAttribute('data-r', cal.release_result);
+      var tol = cal.tolerances || {};
+      var tolKeys = Object.keys(tol).sort();
+      $('tol-list').innerHTML = tolKeys.length ? tolKeys.map(function (sid) {
+        return '<li><span>' + esc(sid) + '</span><strong>±' + esc(tol[sid]) + '</strong></li>';
+      }).join('') : '<li class="empty">尚未登记容差</li>';
+      var off = cal.measured_offsets || {};
+      var offKeys = Object.keys(off).sort();
+      $('rep-list').innerHTML = offKeys.length ? offKeys.map(function (sid) {
+        return '<li><span>' + esc(sid) + '</span><strong>' + esc(off[sid]) + '</strong></li>';
+      }).join('') : '<li class="empty">尚未收到校准报告</li>';
+      var note = [];
+      if (cal.missing_tolerances.length) note.push('缺容差：' + cal.missing_tolerances.join('、'));
+      if (cal.missing_reports.length) note.push('待报告：' + cal.missing_reports.join('、'));
+      if (cal.over_limit) note.push('重算判定存在温区超限');
+      $('cal-note').textContent = note.join('；');
+    }
+  }
+  function applyRun(run) {
+    state.run = run;
+    state.approved = run.status === 'APPROVED' || run.status === 'SUPERSEDED';
+    render(run);
+    $('run-status').textContent = run.status + ' · rev ' + run.revision;
+    $('revision').textContent = 'rev ' + run.revision;
+    syncReviewButtons();
+    renderCalibration(run);
+  }
   async function runBatch() {
     try {
       setNotice('');
       $('run').disabled = true;
       var run = await request('/api/runs', {method: 'POST', body: JSON.stringify({profile: $('profile').value})});
-      state.run = run;
-      state.approved = run.status === 'APPROVED';
-      render(run);
-      $('run-status').textContent = run.status + ' · rev ' + run.revision;
-      $('revision').textContent = 'rev ' + run.revision;
-      $('sign').disabled = run.summary.REJECT > 0 || state.approved;
-      $('hold').disabled = state.approved;
-      $('download').hidden = !state.approved;
-      if (state.approved) $('download').href = '/api/runs/' + run.run_id + '/evidence';
+      applyRun(run);
     } catch (error) { setNotice(error.message); }
     finally { $('run').disabled = false; }
   }
@@ -109,14 +157,38 @@
         method: 'POST',
         body: JSON.stringify({decision: decision, comment: $('comment').value, expected_revision: state.run.revision})
       });
-      state.run = run;
-      state.approved = run.status === 'APPROVED';
-      $('run-status').textContent = run.status + ' · rev ' + run.revision;
-      $('revision').textContent = 'rev ' + run.revision;
-      $('sign').disabled = true;
-      $('hold').disabled = true;
-      $('download').hidden = !state.approved;
-      if (state.approved) $('download').href = '/api/runs/' + run.run_id + '/evidence';
+      applyRun(run);
+    } catch (error) { setNotice(error.message); }
+  }
+  async function saveTolerance() {
+    var sensorId = $('tol-sensor').value.trim();
+    var tolerance = $('tol-value').value.trim();
+    if (!sensorId || !tolerance) { setNotice('请填写探针与允许误差'); return; }
+    try {
+      setNotice('');
+      await request('/api/tolerances', {method: 'POST', body: JSON.stringify({sensor_id: sensorId, tolerance: tolerance})});
+      $('tol-sensor').value = ''; $('tol-value').value = '';
+      if (state.run) {
+        var run = await request('/api/runs/' + state.run.run_id);
+        applyRun(run);
+      }
+    } catch (error) { setNotice(error.message); }
+  }
+  async function submitReport() {
+    if (!state.run) return;
+    var sensorId = $('rep-sensor').value;
+    var offset = $('rep-offset').value.trim();
+    if (!sensorId || !offset) { setNotice('请选择探针并填写实测偏差'); return; }
+    try {
+      setNotice('');
+      var run = await request('/api/runs/' + state.run.run_id + '/calibration', {
+        method: 'POST',
+        body: JSON.stringify({sensor_id: sensorId, measured_offset: offset})
+      });
+      $('rep-offset').value = '';
+      if (run.report_unchanged) setNotice('同一份报告已登记，未新增版本');
+      if (run.superseded) setNotice('实测超限，已停止凭旧结论放行；凭据仍可下载');
+      applyRun(run);
     } catch (error) { setNotice(error.message); }
   }
   async function boot() {
@@ -132,10 +204,13 @@
     $('run').addEventListener('click', runBatch);
     $('sign').addEventListener('click', function () { review('APPROVED'); });
     $('hold').addEventListener('click', function () { review('HELD'); });
+    $('tol-save').addEventListener('click', saveTolerance);
+    $('rep-send').addEventListener('click', submitReport);
     $('profile').addEventListener('change', function () {
       state.run = null; state.approved = false;
       $('sign').disabled = true; $('hold').disabled = true; $('download').hidden = true;
       $('run-status').textContent = '未执行批次'; $('revision').textContent = 'rev 0';
+      renderCalibration(null);
       loadStage('intake');
     });
   }

@@ -18,6 +18,13 @@ MESSAGES = {
     "GATE_BLOCKED": "存在阻断项，不能签发",
     "NOT_APPROVED": "批次尚未签发",
     "BAD_REQUEST": "请求内容不完整",
+    "BAD_TOLERANCE": "允许误差必须为非负数值",
+    "BAD_OFFSET": "探针偏差必须为数值",
+    "TOLERANCE_NOT_REGISTERED": "存在未登记允许误差的探针，不能临时放行",
+    "CALIBRATION_OVER_LIMIT": "实测偏差重算后温区超限，停止放行",
+    "CALIBRATION_HALTED": "批次已停止凭旧结论放行，不能再签发",
+    "CALIBRATION_ENVELOPE_OVER_LIMIT": "允许误差包络内存在超限情形，不能临时放行",
+    "CALIBRATION_UNKNOWN_SENSOR": "该探针不属于本批次",
 }
 
 

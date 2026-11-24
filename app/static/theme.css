@@ -102,6 +102,17 @@
 .p0836 .review { display: grid; gap: 8px; }
 .p0836 .review textarea { width: 100%; min-height: 62px; resize: vertical; }
 .p0836 .review-actions { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.p0836 .calibration { display: grid; gap: 8px; }
+.p0836 .cal-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.p0836 .cal-row label { color: var(--muted); font-size: 12px; }
+.p0836 .cal-row input, .p0836 .cal-row select { width: 9em; }
+.p0836 .tol-list, .p0836 .rep-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 132px; overflow: auto; }
+.p0836 .tol-list li, .p0836 .rep-list li { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px dashed var(--line); padding: 3px 0; font-family: var(--font-num); font-size: 12px; }
+.p0836 .release-pill { display: inline-block; padding: .2em .65em; border-radius: var(--radius); border: 1px solid var(--line); font-size: 12px; letter-spacing: .03em; }
+.p0836 .release-pill[data-r="CONFIRMED"], .p0836 .release-pill[data-r="PROVISIONAL_OK"], .p0836 .release-pill[data-r="PROVISIONAL"] { color: var(--accent); border-color: var(--accent); }
+.p0836 .release-pill[data-r="BLOCKED"] { color: var(--danger); border-color: var(--danger); }
+.p0836 .release-pill[data-r="TOLERANCE_MISSING"], .p0836 .release-pill[data-r="NO_CALIBRATION"] { color: var(--muted); }
+.p0836 .cal-note { margin: 0; color: var(--muted); font-size: 12px; min-height: 1.2em; }
 .p0836 .statusbar {
   display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;
   padding: 9px calc(var(--pad) * 1.25); border-top: 1px solid var(--line); color: var(--muted); font-size: 12px;

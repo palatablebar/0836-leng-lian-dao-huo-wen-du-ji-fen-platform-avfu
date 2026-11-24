@@ -1,5 +1,8 @@
 from flask import Blueprint, abort, jsonify, request, send_file
 
+from app.calibration.intake import (build_assessment, current_assessment,
+                                    list_tolerances, register_tolerance,
+                                    submit_report)
 from app.catalog import SPEC
 from app.config import SAMPLES
 from app.errors import DomainIssue
@@ -48,9 +51,8 @@ def create():
 
 @api.get("/api/runs/<run_id>")
 def get_run(run_id):
-    run = serialize(store().get(run_id))
-    if not run:
-        raise DomainIssue("RUN_NOT_FOUND", 404)
+    run, assessment = current_assessment(store(), run_id)
+    run["calibration"] = assessment
     return jsonify(run)
 
 
@@ -59,13 +61,42 @@ def review(run_id):
     data = request.get_json(silent=True) or {}
     if "decision" not in data or "expected_revision" not in data:
         raise DomainIssue("BAD_REQUEST")
-    return jsonify(approve(store(), run_id, data["decision"], data.get("comment", ""), int(data["expected_revision"])))
+    run = approve(store(), run_id, data["decision"], data.get("comment", ""), int(data["expected_revision"]))
+    run["calibration"] = build_assessment(store(), store().get(run_id))
+    return jsonify(run)
 
 
 @api.get("/api/runs/<run_id>/evidence")
 def evidence(run_id):
     run = serialize(store().get(run_id))
     return jsonify(render(run))
+
+
+@api.get("/api/tolerances")
+def tolerances():
+    return jsonify(items=list_tolerances(store()))
+
+
+@api.post("/api/tolerances")
+def upsert_tolerance():
+    data = request.get_json(silent=True) or {}
+    if "sensor_id" not in data or "tolerance" not in data:
+        raise DomainIssue("BAD_REQUEST")
+    return jsonify(register_tolerance(store(), str(data["sensor_id"]), data["tolerance"]))
+
+
+@api.post("/api/runs/<run_id>/calibration")
+def calibration(run_id):
+    data = request.get_json(silent=True) or {}
+    if "sensor_id" not in data or "measured_offset" not in data:
+        raise DomainIssue("BAD_REQUEST")
+    return jsonify(submit_report(store(), run_id, str(data["sensor_id"]), data["measured_offset"]))
+
+
+@api.get("/api/runs/<run_id>/calibration")
+def calibration_status(run_id):
+    run, assessment = current_assessment(store(), run_id)
+    return jsonify(run_id=run_id, status=run["status"], revision=run["revision"], calibration=assessment)
 
 
 @api.get("/api/examples/<profile>")

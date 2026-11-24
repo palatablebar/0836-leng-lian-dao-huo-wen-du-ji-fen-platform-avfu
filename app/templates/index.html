@@ -39,6 +39,28 @@
         </div>
       </div>
     </article>
+    <article class="panel" id="panel-calibration">
+      <div class="panel-head"><h2>校准与放行结果</h2><span class="hint" id="release-pill">未执行批次</span></div>
+      <div class="calibration">
+        <div class="cal-row">
+          <label for="tol-sensor">探针</label>
+          <input id="tol-sensor" type="text" placeholder="如 S01">
+          <label for="tol-value">允许误差</label>
+          <input id="tol-value" type="text" inputmode="decimal" placeholder="如 0.1">
+          <button id="tol-save" type="button">登记容差</button>
+        </div>
+        <ul class="tol-list" id="tol-list"><li class="empty">尚未登记容差</li></ul>
+        <div class="cal-row">
+          <label for="rep-sensor">校准报告探针</label>
+          <select id="rep-sensor"></select>
+          <label for="rep-offset">实测偏差</label>
+          <input id="rep-offset" type="text" inputmode="decimal" placeholder="读数减参考值">
+          <button id="rep-send" type="button" disabled>提交报告</button>
+        </div>
+        <ul class="rep-list" id="rep-list"><li class="empty">尚未收到校准报告</li></ul>
+        <p class="cal-note" id="cal-note"></p>
+      </div>
+    </article>
   </section>
 </main>
 {% endblock %}
